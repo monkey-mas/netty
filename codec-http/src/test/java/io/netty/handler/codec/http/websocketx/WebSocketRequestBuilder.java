@@ -151,6 +151,7 @@ public class WebSocketRequestBuilder {
                 .method(HttpMethod.GET)
                 .uri("/test")
                 .host("server.example.com")
+                .connection(HttpHeaderValues.UPGRADE)
                 .upgrade(HttpHeaderValues.WEBSOCKET)
                 .key("dGhlIHNhbXBsZSBub25jZQ==")
                 .origin("http://example.com")

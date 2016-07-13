@@ -70,14 +70,33 @@ public class WebSocketServerProtocolHandlerTest {
     }
 
     @Test
+    public void testHttpUpgradeValidRequestWithInCaseSensitiveHeaders() {
+        EmbeddedChannel ch = createChannel();
+        FullHttpRequest httpRequestWithEntity = new WebSocketRequestBuilder().httpVersion(HTTP_1_1)
+                .method(HttpMethod.GET)
+                .uri("/test")
+                .connection("UpgraDe")
+                .key("dGhlIHNhbXBsZSBub25jZQ")
+                .version13()
+                .upgrade("WebSockEt")
+                .build();
+
+        ch.writeInbound(httpRequestWithEntity);
+
+        FullHttpResponse response = ReferenceCountUtil.releaseLater(responses.remove());
+        assertEquals(SWITCHING_PROTOCOLS, response.status());
+    }
+
+    @Test
     public void testHttpUpgradeRequestInvalidUpgradeHeader() {
         EmbeddedChannel ch = createChannel();
         FullHttpRequest httpRequestWithEntity = new WebSocketRequestBuilder().httpVersion(HTTP_1_1)
                 .method(HttpMethod.GET)
                 .uri("/test")
                 .connection("Upgrade")
-                .version00()
-                .upgrade("BogusSocket")
+                .key("dGhlIHNhbXBsZSBub25jZQ")
+                .version13()
+                .upgrade("AWebsocket")
                 .build();
 
         ch.writeInbound(httpRequestWithEntity);
@@ -85,6 +104,7 @@ public class WebSocketServerProtocolHandlerTest {
         FullHttpResponse response = ReferenceCountUtil.releaseLater(responses.remove());
         assertEquals(BAD_REQUEST, response.status());
         assertEquals("not a WebSocket handshake request: missing upgrade", getResponseMessage(response));
+        assertEquals(1, 2);
     }
 
     @Test
@@ -105,6 +125,26 @@ public class WebSocketServerProtocolHandlerTest {
         assertEquals(BAD_REQUEST, response.status());
         assertEquals("not a WebSocket request: missing key", getResponseMessage(response));
     }
+
+//    @Test
+//    public void testHttpUpgradeRequestInvalidConnectionHeader() {
+//        EmbeddedChannel ch = createChannel();
+//        FullHttpRequest httpRequestWithEntity = new WebSocketRequestBuilder().httpVersion(HTTP_1_1)
+//                .method(HttpMethod.GET)
+//                .uri("/test")
+//                .key("dGhlIHNhbXBsZSBub25jZQ==")
+//                .connection("pgrade")
+//                .version13()
+//                .upgrade("websocket")
+//                .build();
+//
+//        ch.writeInbound(httpRequestWithEntity);
+//
+//        FullHttpResponse response = ReferenceCountUtil.releaseLater(responses.remove());
+//        assertEquals(BAD_REQUEST, response.status());
+//        assertEquals("not a WebSocket handshake request: missing connection", getResponseMessage(response));
+//        assertEquals(1, 2);
+//    }
 
     @Test
     public void testHandleTextFrame() {

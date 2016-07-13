@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 
@@ -38,6 +39,7 @@ public class WebSocketServerHandshaker13 extends WebSocketServerHandshaker {
 
     private final boolean allowExtensions;
     private final boolean allowMaskMismatch;
+    private final int currentWebSocketVersion = 13;
 
     /**
      * Constructor specifying the destination web socket location
@@ -124,10 +126,9 @@ public class WebSocketServerHandshaker13 extends WebSocketServerHandshaker {
             res.headers().add(headers);
         }
 
+        validateHeaders(req);
+
         CharSequence key = req.headers().get(HttpHeaderNames.SEC_WEBSOCKET_KEY);
-        if (key == null) {
-            throw new WebSocketHandshakeException("not a WebSocket request: missing key");
-        }
         String acceptSeed = key + WEBSOCKET_13_ACCEPT_GUID;
         byte[] sha1 = WebSocketUtil.sha1(acceptSeed.getBytes(CharsetUtil.US_ASCII));
         String accept = WebSocketUtil.base64(sha1);
@@ -152,6 +153,54 @@ public class WebSocketServerHandshaker13 extends WebSocketServerHandshaker {
             }
         }
         return res;
+    }
+
+    private void validateHeaders(HttpMessage req) {
+        boolean connection = req.headers().containsValue(HttpHeaderNames.CONNECTION, HttpHeaderValues.UPGRADE, true);
+        boolean upgrade = req.headers().containsValue(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET, true);
+        boolean version = req.headers().containsValue(
+                HttpHeaderNames.SEC_WEBSOCKET_VERSION, "" + currentWebSocketVersion, false);
+        // Should we also check if isn't empty or something else?
+        boolean key = req.headers().contains(HttpHeaderNames.SEC_WEBSOCKET_KEY);
+
+        if (connection && upgrade && version && key) {
+            // valid headers
+        } else {
+            CharSequence _key = req.headers().get(HttpHeaderNames.SEC_WEBSOCKET_KEY);
+            if (_key == null) {
+                throw new WebSocketHandshakeException(
+                        "not a WebSocket request: missing sec-websocket-key header filed");
+            }
+
+            CharSequence _upgrade = req.headers().get(HttpHeaderNames.UPGRADE);
+            if (_upgrade == null) {
+                throw new WebSocketHandshakeException("not a WebSocket request: missing Upgrade header field");
+            } else if (!upgrade) {
+                throw new WebSocketHandshakeException("not a WebSocket request: wrong upgrade header value");
+            }
+
+            CharSequence _connection = req.headers().get(HttpHeaderNames.CONNECTION);
+            if (_connection == null) {
+                throw new WebSocketHandshakeException("not a WebSocket request: missing Connection header field");
+            } else if (!connection) {
+                throw new WebSocketHandshakeException("not a WebSocket request: wrong Connection header value");
+            }
+
+            CharSequence _version = req.headers().get(HttpHeaderNames.CONNECTION);
+            if (_version == null) {
+                throw new WebSocketHandshakeException("" +
+                        "not a WebSocket request: missing sec-web-socket-version header field");
+            } else if (!version) {
+                throw new WebSocketHandshakeException("" +
+                        "not a WebSocket request: WebSocket version must be" + currentWebSocketVersion);
+            }
+        }
+//        String upgrade = req.headers().get(HttpHeaderNames.UPGRADE);
+//        if (upgrade == null) {
+//            throw new WebSocketHandshakeException("not a WebSocket request: missing upgrade header field");
+//        } else if (!upgrade.equalsIgnoreCase(HttpHeaderValues.WEBSOCKET.toString())) {
+//            throw new WebSocketHandshakeException("not a WebSocket request: wrong upgrade header field");
+//        }
     }
 
     @Override
